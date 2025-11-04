@@ -3,16 +3,19 @@ import { useNavigate } from 'react-router-dom';
 import { useHealthCare } from '../hooks/useHealthCare';
 import Navbar2D from '../components/Navbar2D';
 import './Pages2D.css';
+import { useIpfsUpload } from '../hooks/useIpfsUpload';
 
 const AddRecords2D = () => {
   const { addPatientRecord, isAuthorized, isConnected } = useHealthCare();
+  const { uploadFile } = useIpfsUpload();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [files, setFiles] = useState([]);
   const [formData, setFormData] = useState({
     recordId: '',
     patientName: '',
     diagnosis: '',
-    treatment: ''
+    treatment: '',
   });
 
   const handleChange = (e) => {
@@ -23,18 +26,45 @@ const AddRecords2D = () => {
     }));
   };
 
+  const handleFileChange = (e) => {
+    const selectedFiles = Array.from(e.target.files);
+    setFiles(selectedFiles);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
     
     try {
-      // Call addPatientRecord with the correct parameters
+      // Upload all files to IPFS
+      const uploadPromises = files.map(file => uploadFile(file));
+      const hashes = await Promise.all(uploadPromises);
+      
+      // Filter out any null values (failed uploads)
+      const validHashes = hashes.filter(hash => hash !== null && hash !== undefined);
+      
+      // Check if all uploads succeeded
+      if (validHashes.length !== files.length) {
+        const failedCount = files.length - validHashes.length;
+        alert(`⚠️ Warning: ${failedCount} image(s) failed to upload to IPFS. Continuing with ${validHashes.length} successful uploads.`);
+      }
+      
+      // If no files were uploaded successfully, you might want to stop here
+      if (files.length > 0 && validHashes.length === 0) {
+        alert('❌ All image uploads failed. Please check your connection and try again.');
+        setLoading(false);
+        return;
+      }
+      
       const result = await addPatientRecord(
         formData.recordId,
         formData.patientName,
         formData.diagnosis,
-        formData.treatment
+        formData.treatment,
+        validHashes
       );
+
+      // const result = { success: true }; // --- IGNORE ---
       
       if (result.success) {
         alert('✅ Patient record added successfully!');
@@ -46,6 +76,10 @@ const AddRecords2D = () => {
           diagnosis: '',
           treatment: ''
         });
+        setFiles([]);
+        // Reset file input
+        const fileInput = document.querySelector('input[type="file"]');
+        if (fileInput) fileInput.value = '';
       } else {
         alert(`❌ ${result.message}`);
       }
@@ -194,6 +228,43 @@ const AddRecords2D = () => {
                     className="form-input"
                     rows="4"
                   />
+                </div>
+
+                <div className="form-group full-width">
+                  <label>Medical Files</label>
+                  <div className="file-upload-wrapper">
+                    <input
+                      type="file"
+                      id="file-upload"
+                      onChange={handleFileChange}
+                      multiple
+                      className="file-input-hidden"
+                    />
+                    <label htmlFor="file-upload" className="file-upload-btn">
+                      <span className="upload-icon">📁</span>
+                      <span className="upload-text">
+                        {files.length > 0 ? `${files.length} file(s) selected` : 'Choose Files'}
+                      </span>
+                      <span className="upload-subtext">Click to browse</span>
+                    </label>
+                  </div>
+                  {files.length > 0 && (
+                    <div className="file-list">
+                      <div className="file-list-header">
+                        <span className="list-icon">📋</span>
+                        <strong>Selected Files:</strong>
+                      </div>
+                      <ul className="file-items">
+                        {files.map((file, index) => (
+                          <li key={index} className="file-item">
+                            <span className="file-icon">📄</span>
+                            <span className="file-name">{file.name}</span>
+                            <span className="file-size">({(file.size / 1024).toFixed(2)} KB)</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
                 </div>
               </div>
 

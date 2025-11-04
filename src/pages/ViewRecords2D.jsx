@@ -42,6 +42,9 @@ const ViewRecords2D = () => {
       setLoading(false);
     }
   };
+  
+  
+
 
   const parseRecordData = (dataArray) => {
     // Handle if dataArray is a string (for backward compatibility)
@@ -68,25 +71,34 @@ const ViewRecords2D = () => {
     // Handle array of records from blockchain
     if (Array.isArray(dataArray)) {
       return dataArray.map((record) => {
-        // Check if record has expected fields
-        if (typeof record === 'object' && record !== null) {
-          const fields = {};
-          
-          // Common blockchain record structure
-          if (record.patientName) fields['Patient Name'] = record.patientName;
-          if (record.diagnosis) fields['Diagnosis'] = record.diagnosis;
-          if (record.treatment) fields['Treatment'] = record.treatment;
-          if (record.timestamp) {
-            const timestamp = typeof record.timestamp === 'bigint' 
-              ? Number(record.timestamp) 
-              : parseInt(record.timestamp);
-            fields['Timestamp'] = new Date(timestamp * 1000).toLocaleString();
-          }
-          
-          return fields;
+        const fields = {};
+        
+        // Parse blockchain record structure
+        // record[0] = patient ID
+        // record[1] = patient name
+        // record[2] = diagnosis
+        // record[3] = treatment
+        // record[4] = ipfs hashes array
+        // record[5] = timestamp
+        
+        if (record[1]) fields['Patient Name'] = record[1];
+        if (record[2]) fields['Diagnosis'] = record[2];
+        if (record[3]) fields['Treatment'] = record[3];
+        
+        // Handle IPFS hashes
+        if (record[4] && Array.isArray(record[4])) {
+          fields['ipfsHashes'] = record[4];
+          fields['Number of Images'] = record[4].length;
         }
         
-        return { 'Record': String(record) };
+        if (record[5]) {
+          const timestamp = typeof record[5] === 'bigint' 
+            ? Number(record[5]) 
+            : parseInt(record[5]);
+          fields['Timestamp'] = new Date(timestamp * 1000).toLocaleString();
+        }
+        
+        return fields;
       });
     }
     
@@ -210,6 +222,7 @@ const ViewRecords2D = () => {
             <div className="record-header">
               <h2>
                 {record.data[0][1]}
+                
                 <br />
                 Patient Records for ID #{record.id} 
               </h2>
@@ -219,21 +232,69 @@ const ViewRecords2D = () => {
             <div className="record-content">
               {(() => {
                 const recordsArray = parseRecordData(record.data);
-                return recordsArray?.reverse().map((fields, idx) => (
-                  <div key={idx} className="record-section">
-                    {recordsArray.length > 1 && (
-                      <h3 className="record-section-title">Record - {idx + 1}</h3>
-                    )}
-                    <div className="record-grid">
-                      {Object.entries(fields).map(([key, value]) => (
-                        <div key={key} className="record-field">
-                          <label className="field-label">{key}</label>
-                          <div className="field-value">{value}</div>
+                return recordsArray?.reverse().map((fields, idx) => {
+                  const ipfsHashes = fields['ipfsHashes'];
+                  const fieldsWithoutIpfs = Object.entries(fields).filter(
+                    ([key]) => key !== 'ipfsHashes'
+                  );
+                  
+                  return (
+                    <div key={idx} className="record-section">
+                      {recordsArray.length > 1 && (
+                        <h3 className="record-section-title">Record {recordsArray.length - idx}</h3>
+                      )}
+                      <div className="record-grid">
+                        {fieldsWithoutIpfs.map(([key, value]) => (
+                          <div key={key} className="record-field">
+                            <label className="field-label">{key}</label>
+                            <div className="field-value">{value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Display IPFS Images */}
+                      {ipfsHashes && ipfsHashes.length > 0 && (
+                        <div className="ipfs-images-section">
+                          <h4 className="ipfs-section-title">
+                            📸 Medical Images ({ipfsHashes.length})
+                          </h4>
+                          <div className="ipfs-images-grid">
+                            {ipfsHashes.map((hash, imgIdx) => (
+                              <div key={imgIdx} className="ipfs-image-card">
+                                <div className="image-wrapper">
+                                  <img 
+                                    src={`https://gateway.pinata.cloud/ipfs/${hash}`}
+                                    alt={`Medical image ${imgIdx + 1}`}
+                                    className="medical-image"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5JbWFnZSBOb3QgRm91bmQ8L3RleHQ+PC9zdmc+';
+                                    }}
+                                  />
+                                </div>
+                                <div className="image-info">
+                                  <span className="image-number">Image {imgIdx + 1}</span>
+                                  <a 
+                                    href={`https://gateway.pinata.cloud/ipfs/${hash}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="view-full-link"
+                                  >
+                                    🔗 View Full
+                                  </a>
+                                </div>
+                                <div className="ipfs-hash-display">
+                                  <span className="hash-label">IPFS:</span>
+                                  <code className="hash-code">{hash.substring(0, 10)}...{hash.substring(hash.length - 8)}</code>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
                         </div>
-                      ))}
+                      )}
                     </div>
-                  </div>
-                ));
+                  );
+                });
               })()}
             </div>
 

@@ -25,6 +25,11 @@
 				"internalType": "string",
 				"name": "_treatment",
 				"type": "string"
+			},
+			{
+				"internalType": "string[]",
+				"name": "_images",
+				"type": "string[]"
 			}
 		],
 		"name": "addPatientRecord",
@@ -95,6 +100,11 @@
 						"internalType": "string",
 						"name": "treatment",
 						"type": "string"
+					},
+					{
+						"internalType": "string[]",
+						"name": "pics",
+						"type": "string[]"
 					},
 					{
 						"internalType": "uint256",

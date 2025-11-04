@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 import React, { useState, useEffect } from 'react';
 import { ethers } from 'ethers';
 import contractABI from '../assets/abi.json';
@@ -14,7 +15,8 @@ export const HealthCareProvider = ({ children }) => {
     const [loading, setLoading] = useState(false);
     const [isConnected, setIsConnected] = useState(false);
     
-    const contractAddress = "0x0Dc41d25065E6c59f91a927035Be478D3004F2fA";
+
+    const contractAddress = import.meta.env.VITE_CONTRACT_ADDRESS;
 
     useEffect(() => {
         connectWallet();
@@ -75,16 +77,17 @@ export const HealthCareProvider = ({ children }) => {
         }
     };
 
-    const addPatientRecord = async (patientId, patientName, diagnosis, treatment) => {
+    const addPatientRecord = async (patientId, patientName, diagnosis, treatment, images) => {
         try {
             setLoading(true);
             if (!smartContract) {
                 throw new Error("Smart contract not connected");
             }
             
-            const tx = await smartContract.addPatientRecord(patientId, patientName, diagnosis, treatment);
+            const tx = await smartContract.addPatientRecord(patientId, patientName, diagnosis, treatment, images);
             await tx.wait();
             return { success: true, message: "Patient record added successfully!" };
+
         } catch (error) {
             console.error("Error adding patient record:", error);
             return { success: false, message: "Failed to add patient record" };
