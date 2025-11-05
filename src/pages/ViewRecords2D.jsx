@@ -228,7 +228,7 @@ const ViewRecords2D = () => {
           <div className="record-container">
             <div className="record-header">
               <h2>
-                {parsedRecords.length > 0 && parsedRecords[0]['Patient Name']}
+                {parsedRecords.length > 0 && parsedRecords[parsedRecords.length-1]['Patient Name']}
                 
                 <br />
                 Patient Records for ID #{record.id} 
