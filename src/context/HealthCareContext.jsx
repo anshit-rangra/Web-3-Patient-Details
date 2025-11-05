@@ -59,14 +59,14 @@ export const HealthCareProvider = ({ children }) => {
 
     
 
-    const authorizeProvider = async (providerAddress) => {
+    const authorizeProvider = async (providerAddress, name) => {
         try {
             setLoading(true);
             if (!smartContract) {
                 throw new Error("Smart contract not connected");
             }
             
-            const tx = await smartContract.authorizeTheProvider(providerAddress);
+            const tx = await smartContract.authorizeTheProvider(providerAddress, name);
             await tx.wait();
             return { success: true, message: "Provider authorized successfully!" };
         } catch (error) {
@@ -104,6 +104,7 @@ export const HealthCareProvider = ({ children }) => {
             }
             
             const records = await smartContract.fetchAllRecords(patientId);
+            
             return { success: true, data: records };
         } catch (error) {
             console.error("Error fetching patient records:", error);
@@ -112,6 +113,19 @@ export const HealthCareProvider = ({ children }) => {
             setLoading(false);
         }
     };
+
+    const getHospitalName = async (address) => {
+        try {
+            if (!smartContract) {
+                throw new Error("Smart contract not connected");
+            }
+
+            const hospitalName = await smartContract.getHospital(address);
+            return { success: true, data: hospitalName };
+        } catch (error) {
+            console.error("Error fetching hospital name:", error);
+        }
+    }
 
     const value = {
         isOwner,
@@ -124,7 +138,8 @@ export const HealthCareProvider = ({ children }) => {
         authorizeProvider,
         addPatientRecord,
         fetchPatientRecords,
-        getPatientRecord: fetchPatientRecords // Add alias for compatibility
+        getPatientRecord: fetchPatientRecords ,
+        getHospitalName
     };
 
     return (

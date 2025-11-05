@@ -5,12 +5,13 @@ import Navbar2D from '../components/Navbar2D';
 import './Pages2D.css';
 
 const ViewRecords2D = () => {
-  const { getPatientRecord, isAuthorized, isConnected } = useHealthCare();
+  const { getPatientRecord, isAuthorized, isConnected, getHospitalName } = useHealthCare();
   const navigate = useNavigate();
   const [patientId, setPatientId] = useState('');
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [parsedRecords, setParsedRecords] = useState([]);
 
   const handleSearch = async () => {
     if (!patientId.trim()) {
@@ -21,10 +22,10 @@ const ViewRecords2D = () => {
     setLoading(true);
     setError('');
     setRecord(null);
+    setParsedRecords([]);
 
     try {
       const response = await getPatientRecord(patientId);
-
       
       if (response.success && response.data && response.data.length > 0) {
         setRecord({
@@ -32,6 +33,10 @@ const ViewRecords2D = () => {
           data: response.data,
           timestamp: new Date().toLocaleString()
         });
+        
+        // Parse records immediately after setting record
+        const parsed = await parseRecordData(response.data);
+        setParsedRecords(parsed);
       } else {
         setError('No record found for this patient ID');
       }
@@ -46,7 +51,7 @@ const ViewRecords2D = () => {
   
 
 
-  const parseRecordData = (dataArray) => {
+  const parseRecordData = async (dataArray) => {
     // Handle if dataArray is a string (for backward compatibility)
     if (typeof dataArray === 'string') {
       const fields = {};
@@ -69,17 +74,12 @@ const ViewRecords2D = () => {
     }
     
     // Handle array of records from blockchain
+    
     if (Array.isArray(dataArray)) {
-      return dataArray.map((record) => {
+      const recordPromises = dataArray.map(async (record) => {
         const fields = {};
         
-        // Parse blockchain record structure
-        // record[0] = patient ID
-        // record[1] = patient name
-        // record[2] = diagnosis
-        // record[3] = treatment
-        // record[4] = ipfs hashes array
-        // record[5] = timestamp
+        
         
         if (record[1]) fields['Patient Name'] = record[1];
         if (record[2]) fields['Diagnosis'] = record[2];
@@ -88,18 +88,25 @@ const ViewRecords2D = () => {
         // Handle IPFS hashes
         if (record[4] && Array.isArray(record[4])) {
           fields['ipfsHashes'] = record[4];
-          fields['Number of Images'] = record[4].length;
+        }
+
+        if (record[5]) {
+          const hospitalName = await getHospitalName(record[5]);
+          fields['Hospital'] = hospitalName.data;
         }
         
-        if (record[5]) {
-          const timestamp = typeof record[5] === 'bigint' 
-            ? Number(record[5]) 
-            : parseInt(record[5]);
+        if (record[6]) {
+          const timestamp = typeof record[6] === 'bigint'
+            ? Number(record[6])
+            : parseInt(record[6]);
           fields['Timestamp'] = new Date(timestamp * 1000).toLocaleString();
         }
         
         return fields;
       });
+      
+      // Wait for all promises to resolve
+      return await Promise.all(recordPromises);
     }
     
     // Fallback: convert to string representation
@@ -221,7 +228,7 @@ const ViewRecords2D = () => {
           <div className="record-container">
             <div className="record-header">
               <h2>
-                {record.data[0][1]}
+                {parsedRecords.length > 0 && parsedRecords[0]['Patient Name']}
                 
                 <br />
                 Patient Records for ID #{record.id} 
@@ -230,72 +237,71 @@ const ViewRecords2D = () => {
             </div>
 
             <div className="record-content">
-              {(() => {
-                const recordsArray = parseRecordData(record.data);
-                return recordsArray?.reverse().map((fields, idx) => {
-                  const ipfsHashes = fields['ipfsHashes'];
-                  const fieldsWithoutIpfs = Object.entries(fields).filter(
-                    ([key]) => key !== 'ipfsHashes'
-                  );
-                  
-                  return (
-                    <div key={idx} className="record-section">
-                      {recordsArray.length > 1 && (
-                        <h3 className="record-section-title">Record {recordsArray.length - idx}</h3>
-                      )}
-                      <div className="record-grid">
-                        {fieldsWithoutIpfs.map(([key, value]) => (
-                          <div key={key} className="record-field">
-                            <label className="field-label">{key}</label>
-                            <div className="field-value">{value}</div>
-                          </div>
-                        ))}
-                      </div>
-                      
-                      {/* Display IPFS Images */}
-                      {ipfsHashes && ipfsHashes.length > 0 && (
-                        <div className="ipfs-images-section">
-                          <h4 className="ipfs-section-title">
-                            📸 Medical Images ({ipfsHashes.length})
-                          </h4>
-                          <div className="ipfs-images-grid">
-                            {ipfsHashes.map((hash, imgIdx) => (
-                              <div key={imgIdx} className="ipfs-image-card">
-                                <div className="image-wrapper">
-                                  <img 
-                                    src={`https://gateway.pinata.cloud/ipfs/${hash}`}
-                                    alt={`Medical image ${imgIdx + 1}`}
-                                    className="medical-image"
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5JbWFnZSBOb3QgRm91bmQ8L3RleHQ+PC9zdmc+';
-                                    }}
-                                  />
-                                </div>
-                                <div className="image-info">
-                                  <span className="image-number">Image {imgIdx + 1}</span>
-                                  <a 
-                                    href={`https://gateway.pinata.cloud/ipfs/${hash}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    className="view-full-link"
-                                  >
-                                    🔗 View Full
-                                  </a>
-                                </div>
-                                <div className="ipfs-hash-display">
-                                  <span className="hash-label">IPFS:</span>
-                                  <code className="hash-code">{hash.substring(0, 10)}...{hash.substring(hash.length - 8)}</code>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
+              {parsedRecords.length > 0 && [...parsedRecords].reverse().map((fields, idx) => {
+                const ipfsHashes = fields['ipfsHashes'];
+                const fieldsWithoutIpfs = Object.entries(fields).filter(
+                  ([key]) => key !== 'ipfsHashes'
+                );
+                
+                return (
+                  <div key={idx} className="record-section">
+                    {parsedRecords.length > 1 && (
+                      <h3 className="record-section-title">Record {parsedRecords.length - idx}</h3>
+                    )}
+                    
+                    
+                    <div className="record-grid">
+                      {fieldsWithoutIpfs.map(([key, value]) => (
+                        <div key={key} className="record-field">
+                          <label className="field-label">{key}</label>
+                          <div className="field-value">{value}</div>
                         </div>
-                      )}
+                      ))}
                     </div>
-                  );
-                });
-              })()}
+                    
+                    {/* Display IPFS Images */}
+                    {ipfsHashes && ipfsHashes.length > 0 && (
+                      <div className="ipfs-images-section">
+                        <h4 className="ipfs-section-title">
+                          📸 Medical Images ({ipfsHashes.length})
+                        </h4>
+                        <div className="ipfs-images-grid">
+                          {ipfsHashes.map((hash, imgIdx) => (
+                            <div key={imgIdx} className="ipfs-image-card">
+                              <div className="image-wrapper">
+                                <img 
+                                  src={`https://gateway.pinata.cloud/ipfs/${hash}`}
+                                  alt={`Medical image ${imgIdx + 1}`}
+                                  className="medical-image"
+                                  onError={(e) => {
+                                    e.target.onerror = null;
+                                    e.target.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMjAwIiBoZWlnaHQ9IjIwMCIgZmlsbD0iI2VlZSIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmaWxsPSIjOTk5Ij5JbWFnZSBOb3QgRm91bmQ8L3RleHQ+PC9zdmc+';
+                                  }}
+                                />
+                              </div>
+                              <div className="image-info">
+                                <span className="image-number">Image {imgIdx + 1}</span>
+                                <a 
+                                  href={`https://gateway.pinata.cloud/ipfs/${hash}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="view-full-link"
+                                >
+                                  🔗 View Full
+                                </a>
+                              </div>
+                              <div className="ipfs-hash-display">
+                                <span className="hash-label">IPFS:</span>
+                                <code className="hash-code">{hash.substring(0, 10)}...{hash.substring(hash.length - 8)}</code>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             <div className="record-footer">

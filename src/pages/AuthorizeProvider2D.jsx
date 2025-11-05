@@ -9,6 +9,7 @@ const AuthorizeProvider2D = () => {
   const navigate = useNavigate();
   
   const [providerAddress, setProviderAddress] = useState('');
+  const [name, setName] = useState('');
   const [notification, setNotification] = useState({ show: false, message: '', type: '' });
 
   const showNotification = (message, type) => {
@@ -32,6 +33,11 @@ const AuthorizeProvider2D = () => {
       return;
     }
 
+    if (!name.trim()) {
+      showNotification('⚠️ Please enter a provider name', 'error');
+      return;
+    }
+
     // Check if it's a valid Ethereum address
     if (!/^0x[a-fA-F0-9]{40}$/.test(providerAddress.trim())) {
       showNotification('⚠️ Invalid Ethereum address format', 'error');
@@ -40,11 +46,12 @@ const AuthorizeProvider2D = () => {
 
 
     try {
-      const result = await authorizeProvider(providerAddress.trim());
+      const result = await authorizeProvider(providerAddress.trim(), name.trim());
       
       if (result.success) {
         showNotification('✅ Provider authorized successfully!', 'success');
         setProviderAddress('');
+        setName('');
       } else {
         showNotification(`❌ ${result.message}`, 'error');
       }
@@ -125,7 +132,25 @@ const AuthorizeProvider2D = () => {
           <form onSubmit={handleAuthorize} className="data-form">
             <div className="form-group">
               <label className="form-label">
-                <span className="label-icon">📍</span>
+                <span className="label-icon">�</span>
+                Provider Name
+              </label>
+              <input
+                type="text"
+                className="form-input"
+                placeholder="Enter Hospital name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                disabled={loading}
+              />
+              <span className="input-helper">
+                Enter the name of the healthcare provider or institution
+              </span>
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">
+                <span className="label-icon">�📍</span>
                 Provider Wallet Address
               </label>
               <input

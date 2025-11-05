@@ -43,6 +43,11 @@
 				"internalType": "address",
 				"name": "provider",
 				"type": "address"
+			},
+			{
+				"internalType": "string",
+				"name": "_name",
+				"type": "string"
 			}
 		],
 		"name": "authorizeTheProvider",
@@ -107,6 +112,11 @@
 						"type": "string[]"
 					},
 					{
+						"internalType": "address",
+						"name": "hospital",
+						"type": "address"
+					},
+					{
 						"internalType": "uint256",
 						"name": "timestamp",
 						"type": "uint256"
@@ -121,6 +131,25 @@
 		"type": "function"
 	},
 	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "_address",
+				"type": "address"
+			}
+		],
+		"name": "getHospital",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "name",
+				"type": "string"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
 		"inputs": [],
 		"name": "getOwner",
 		"outputs": [
@@ -128,6 +157,25 @@
 				"internalType": "address",
 				"name": "",
 				"type": "address"
+			}
+		],
+		"stateMutability": "view",
+		"type": "function"
+	},
+	{
+		"inputs": [
+			{
+				"internalType": "address",
+				"name": "",
+				"type": "address"
+			}
+		],
+		"name": "hospitals",
+		"outputs": [
+			{
+				"internalType": "string",
+				"name": "",
+				"type": "string"
 			}
 		],
 		"stateMutability": "view",
@@ -180,6 +228,11 @@
 				"internalType": "string",
 				"name": "treatment",
 				"type": "string"
+			},
+			{
+				"internalType": "address",
+				"name": "hospital",
+				"type": "address"
 			},
 			{
 				"internalType": "uint256",
